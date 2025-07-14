@@ -10,55 +10,52 @@ const clients = new Map()
 
 app.ws('/ws', (ws, req) => {
     const clientId = uuidv4()
-    const startPos = { 
-        x: 100 + Math.random() * 300, y: 100 + Math.random() * 300
+    const startPos = {
+        x: 100 + Math.random() * 300,
+        y: 100 + Math.random() * 300,
     }
 
     console.log(`Client ID joined: ${clientId}`)
 
-    clients.set(
-        clientId, 
-        {
-            ws,
-            position: startPos
-        }
-    )
+    clients.set(clientId, {
+        ws,
+        position: startPos,
+    })
 
-    ws.send(JSON.stringify(
-        {
+    ws.send(
+        JSON.stringify({
             type: 'init',
             id: clientId,
-            state: getWorldState()
-        }
-    ))
-
-    broadcast(
-        {
-            type: 'join',
-            id: clientId,
-            position: startPos
-        }
+            state: getWorldState(),
+        })
     )
 
-    // ws.on('message', () => {
-    //     broadcast(
-    //         {
-    //             type: 'move',
-                
-    //         }
-    //     )
-    // })
+    broadcast({
+        type: 'join',
+        id: clientId,
+        position: startPos,
+    })
+
+    ws.on('message', (json) => {
+        try {
+            const newPos = JSON.parse(json)
+            broadcast({
+                type: 'move',
+                id: clientId,
+                position: newPos,
+            })
+        } catch (error) {
+            console.error('Invalid JSON', err)
+        }
+    })
 
     ws.on('close', () => {
         clients.delete(clientId)
-        broadcast(
-            {
-                type: 'leave',
-                id: clientId,
-            }
-        )
+        broadcast({
+            type: 'leave',
+            id: clientId,
+        })
     })
-
 })
 
 function broadcast(data) {
@@ -72,7 +69,7 @@ function getWorldState() {
     const state = {}
 
     clients.forEach((value, id) => {
-        state[id] = value.position 
+        state[id] = value.position
     })
 
     return state
