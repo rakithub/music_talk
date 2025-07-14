@@ -1,9 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 
-export default function PlayerBar({ isMe, pos }) {
+export default function PlayerBar({ isMe, pos, rotation }) {
     const boxRef = useRef(null)
-
-    const [position, setPosition] = useState({ x: 100, y: 100 })
 
     return (
         <div
@@ -13,7 +11,8 @@ export default function PlayerBar({ isMe, pos }) {
                 width: '20px',
                 height: '120px',
                 backgroundColor: 'white',
-                transform: `translate(${pos.x}px, ${pos.y}px)`,
+                transformOrigin: 'center',
+                transform: `translate(${pos.x}px, ${pos.y}px) rotate(${rotation}deg)`,
                 transition: 'transform 0s',
             }}
         />
