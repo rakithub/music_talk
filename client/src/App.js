@@ -25,10 +25,19 @@ function App() {
 
             if (msg.type === 'init') {
                 setClientId(msg.id)
-                setBarState(msg.state)
-            } else if (msg.type === 'join' || msg.type === 'move') {
+                setBarState(() => {
+                    barsRef.current = msg.state
+                    return msg.state
+                })
+            } else if (msg.type === 'join' || msg.type === 'transform') {
                 setBarState((prev) => {
-                        const newBars = { ...prev, [msg.id]: msg.position }
+                        const newBars = { 
+                            ...prev, 
+                            [msg.id]: {
+                                position: msg.position,
+                                rotation: msg.rotation
+                            }
+                        }
                         barsRef.current = newBars
                         return newBars
                     }
@@ -61,19 +70,14 @@ function App() {
         }
     }, [])
 
-    const rotateBar = async (degree) => {
-        setRotation(degree)
-        await new Promise(resolve => setTimeout(resolve, 200))
-        setRotation(0)
-    }
-
     useEffect(() => {
         let animateFrameId
         const update = () => {
             if (!clientId) return
 
-            let newX = barsRef.current[clientId].x
-            let newY = barsRef.current[clientId].y
+            let newX = barsRef.current[clientId].position.x
+            let newY = barsRef.current[clientId].position.y
+            let newRotation = barsRef.current[clientId].rotation
 
             // Move
             if (keysPressed.current['ArrowLeft'] || keysPressed.current['a']) {
@@ -90,18 +94,27 @@ function App() {
             }
 
             // Rotate
-            if (keysPressed.current['j'] && rotation === 0) {
-                rotateBar(20)
+            if (keysPressed.current['j'] && barsRef.current[clientId].rotation === 0) {
+                newRotation = 20
             }
-            if (keysPressed.current['k'] && rotation === 0) {
-                rotateBar(-20)
+            if (keysPressed.current['k'] && barsRef.current[clientId].rotation === 0) {
+                newRotation = -20
             }
 
             const newPos = { x: newX, y: newY }
 
             // Update new position to websocket
-            if ((newX !== barsRef.current[clientId].x || newY !== barsRef.current[clientId].y) && socket.readyState === WebSocket.OPEN) {
-                socket.send(JSON.stringify(newPos))
+            if (
+                (
+                    (newX !== barsRef.current[clientId].position.x || newY !== barsRef.current[clientId].position.y) 
+                    || (newRotation !== 0)
+                )
+                && socket.readyState === WebSocket.OPEN
+            ) {
+                socket.send(JSON.stringify({
+                    position: newPos,
+                    rotation: newRotation,
+                }))
             }
 
             animateFrameId = requestAnimationFrame(update)
@@ -114,8 +127,8 @@ function App() {
     return (
         <div className="App">
             <header className="App-header">
-                {Object.entries(bars).map(([id, pos]) => (
-                    <PlayerBar key={id} isMe={id === clientId} pos={pos} rotation={rotation} />
+                {Object.entries(bars).map(([id, transform]) => (
+                    <PlayerBar key={id} isMe={id === clientId} transform={transform} />
                 ))}
             </header>
         </div>

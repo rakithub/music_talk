@@ -14,12 +14,14 @@ app.ws('/ws', (ws, req) => {
         x: 100 + Math.random() * 300,
         y: 100 + Math.random() * 300,
     }
+    const startRotation = 0
 
     console.log(`Client ID joined: ${clientId}`)
 
     clients.set(clientId, {
         ws,
         position: startPos,
+        rotation: startRotation
     })
 
     ws.send(
@@ -34,15 +36,17 @@ app.ws('/ws', (ws, req) => {
         type: 'join',
         id: clientId,
         position: startPos,
+        rotation: startRotation
     })
 
     ws.on('message', (json) => {
         try {
-            const newPos = JSON.parse(json)
+            const transform = JSON.parse(json)
             broadcast({
-                type: 'move',
+                type: 'transform',
                 id: clientId,
-                position: newPos,
+                position: transform.position,
+                rotation: transform.rotation
             })
         } catch (error) {
             console.error('Invalid JSON', err)
@@ -50,6 +54,7 @@ app.ws('/ws', (ws, req) => {
     })
 
     ws.on('close', () => {
+        console.log(`Client ${clientId} leaves.`)
         clients.delete(clientId)
         broadcast({
             type: 'leave',
@@ -58,10 +63,23 @@ app.ws('/ws', (ws, req) => {
     })
 })
 
+const resetRotation = async (ws, data) => {
+    await new Promise(resolve => setTimeout(resolve, 200))
+    ws.send(
+        JSON.stringify({
+            ...data,
+            rotation: 0
+        })
+    )
+}
+
 function broadcast(data) {
     const json = JSON.stringify(data)
     clients.forEach(({ ws }) => {
-        if (ws.readyState === 1) ws.send(json)
+        if (ws.readyState === 1) {
+            ws.send(json)
+            if (data.rotation) resetRotation(ws, data)
+        }
     })
 }
 
@@ -69,7 +87,10 @@ function getWorldState() {
     const state = {}
 
     clients.forEach((value, id) => {
-        state[id] = value.position
+        state[id] = {
+            position: value.position,
+            rotation: value.rotation
+        }
     })
 
     return state
