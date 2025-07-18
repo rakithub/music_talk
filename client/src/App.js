@@ -17,8 +17,29 @@ function App() {
 
     const speed = 10
 
+    function coercePosition(position) {
+        let x = position.x
+        let y = position.y
+
+        const maxX = windowWidth - 20
+        const maxY = windowHeight - 120
+
+        if (x < 0) x = 0
+        if (x > maxX) x = maxX
+
+        if (y < 0) y = 0
+        if (y > maxY) y = maxY
+
+        return {
+            x: x,
+            y: y,
+        }
+    }
+
     useEffect(() => {
-        console.log(`Window Size\nwidth: ${windowWidth}, height: ${windowHeight}`)
+        console.log(
+            `Window Size\nwidth: ${windowWidth}, height: ${windowHeight}`
+        )
         socket.onopen = (event) => {
             console.log('WebSocket opened.')
         }
@@ -34,26 +55,25 @@ function App() {
                 })
             } else if (msg.type === 'join' || msg.type === 'transform') {
                 setBarState((prev) => {
-                        const newBars = { 
-                            ...prev, 
-                            [msg.id]: {
-                                ...prev[msg.id],
-                                position: msg.position,
-                                rotation: msg.rotation
-                            }
-                        }
-                        barsRef.current = newBars
-                        return newBars
-                    }
-                )
-            } else if (msg.type === 'resetRotation') {
-                setBarState((prev) => {
-                    const newBars = { 
-                        ...prev, 
+                    const newBars = {
+                        ...prev,
                         [msg.id]: {
                             ...prev[msg.id],
-                            rotation: 0
-                        }
+                            position: coercePosition(msg.position),
+                            rotation: msg.rotation,
+                        },
+                    }
+                    barsRef.current = newBars
+                    return newBars
+                })
+            } else if (msg.type === 'resetRotation') {
+                setBarState((prev) => {
+                    const newBars = {
+                        ...prev,
+                        [msg.id]: {
+                            ...prev[msg.id],
+                            rotation: 0,
+                        },
                     }
                     barsRef.current = newBars
                     return newBars
@@ -110,27 +130,34 @@ function App() {
             }
 
             // Rotate
-            if (keysPressed.current['j'] && barsRef.current[clientId].rotation === 0) {
-                newRotation = (barsRef.current[clientId].initialPlayer)? 20 : -20
+            if (
+                keysPressed.current['j'] &&
+                barsRef.current[clientId].rotation === 0
+            ) {
+                newRotation = barsRef.current[clientId].initialPlayer ? 20 : -20
             }
-            if (keysPressed.current['k'] && barsRef.current[clientId].rotation === 0) {
-                newRotation = (barsRef.current[clientId].initialPlayer)? -20 : 20
+            if (
+                keysPressed.current['k'] &&
+                barsRef.current[clientId].rotation === 0
+            ) {
+                newRotation = barsRef.current[clientId].initialPlayer ? -20 : 20
             }
 
             const newPos = { x: newX, y: newY }
 
             // Update new position to websocket
             if (
-                (
-                    (newX !== barsRef.current[clientId].position.x || newY !== barsRef.current[clientId].position.y) 
-                    || (newRotation !== 0)
-                )
-                && socket.readyState === WebSocket.OPEN
+                (newX !== barsRef.current[clientId].position.x ||
+                    newY !== barsRef.current[clientId].position.y ||
+                    newRotation !== 0) &&
+                socket.readyState === WebSocket.OPEN
             ) {
-                socket.send(JSON.stringify({
-                    position: newPos,
-                    rotation: newRotation,
-                }))
+                socket.send(
+                    JSON.stringify({
+                        position: newPos,
+                        rotation: newRotation,
+                    })
+                )
             }
 
             animateFrameId = requestAnimationFrame(update)
@@ -149,7 +176,12 @@ function App() {
             }}/> */}
             <header className="App-header">
                 {Object.entries(bars).map(([id, transform]) => (
-                    <PlayerBar key={id} isMe={id === clientId} transform={transform} size={{width: windowWidth, height: windowHeight}}/>
+                    <PlayerBar
+                        key={id}
+                        isMe={id === clientId}
+                        transform={transform}
+                        size={{ width: windowWidth, height: windowHeight }}
+                    />
                 ))}
             </header>
         </div>
