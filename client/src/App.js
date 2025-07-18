@@ -2,6 +2,7 @@ import './App.css'
 import axios from 'axios'
 import PlayerBar from './PlayerBar'
 import React, { use, useEffect, useRef, useState } from 'react'
+import useWindowDimension from './WindowSize'
 
 const socket = new WebSocket('ws://localhost:8080/ws')
 
@@ -12,10 +13,12 @@ function App() {
     const [clientId, setClientId] = useState(null)
     const [bars, setBarState] = useState({})
     const [rotation, setRotation] = useState(0)
+    const { width: windowWidth, height: windowHeight } = useWindowDimension()
 
     const speed = 10
 
     useEffect(() => {
+        console.log(`Window Size\nwidth: ${windowWidth}, height: ${windowHeight}`)
         socket.onopen = (event) => {
             console.log('WebSocket opened.')
         }
@@ -34,6 +37,7 @@ function App() {
                         const newBars = { 
                             ...prev, 
                             [msg.id]: {
+                                ...prev[msg.id],
                                 position: msg.position,
                                 rotation: msg.rotation
                             }
@@ -42,6 +46,18 @@ function App() {
                         return newBars
                     }
                 )
+            } else if (msg.type === 'resetRotation') {
+                setBarState((prev) => {
+                    const newBars = { 
+                        ...prev, 
+                        [msg.id]: {
+                            ...prev[msg.id],
+                            rotation: 0
+                        }
+                    }
+                    barsRef.current = newBars
+                    return newBars
+                })
             } else if (msg.type === 'leave') {
                 setBarState((prev) => {
                     var newState = { ...prev }
@@ -95,10 +111,10 @@ function App() {
 
             // Rotate
             if (keysPressed.current['j'] && barsRef.current[clientId].rotation === 0) {
-                newRotation = 20
+                newRotation = (barsRef.current[clientId].initialPlayer)? 20 : -20
             }
             if (keysPressed.current['k'] && barsRef.current[clientId].rotation === 0) {
-                newRotation = -20
+                newRotation = (barsRef.current[clientId].initialPlayer)? -20 : 20
             }
 
             const newPos = { x: newX, y: newY }
@@ -126,9 +142,14 @@ function App() {
 
     return (
         <div className="App">
+            {/* <div style={{
+                width: `${windowWidth / 2}px`,
+                height: `${windowHeight / 2}px`,
+                background: 'red'
+            }}/> */}
             <header className="App-header">
                 {Object.entries(bars).map(([id, transform]) => (
-                    <PlayerBar key={id} isMe={id === clientId} transform={transform} />
+                    <PlayerBar key={id} isMe={id === clientId} transform={transform} size={{width: windowWidth, height: windowHeight}}/>
                 ))}
             </header>
         </div>

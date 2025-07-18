@@ -21,14 +21,15 @@ app.ws('/ws', (ws, req) => {
     clients.set(clientId, {
         ws,
         position: startPos,
-        rotation: startRotation
+        rotation: startRotation,
+        initialPlayer: clients.size % 2 == 0
     })
 
     ws.send(
         JSON.stringify({
             type: 'init',
             id: clientId,
-            state: getWorldState(),
+            state: getWorldState()
         })
     )
 
@@ -67,15 +68,15 @@ const resetRotation = async (ws, data) => {
     await new Promise(resolve => setTimeout(resolve, 200))
     ws.send(
         JSON.stringify({
-            ...data,
-            rotation: 0
+            type: 'resetRotation',
+            id: data.id,
         })
     )
 }
 
 function broadcast(data) {
     const json = JSON.stringify(data)
-    clients.forEach(({ ws }) => {
+    clients.forEach(({ ws, initialPlayer }) => {
         if (ws.readyState === 1) {
             ws.send(json)
             if (data.rotation) resetRotation(ws, data)
@@ -89,7 +90,8 @@ function getWorldState() {
     clients.forEach((value, id) => {
         state[id] = {
             position: value.position,
-            rotation: value.rotation
+            rotation: value.rotation,
+            initialPlayer: value.initialPlayer
         }
     })
 
